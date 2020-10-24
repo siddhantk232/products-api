@@ -1,23 +1,48 @@
 package main
 
 import (
-	"fmt"
-	"io/ioutil"
+	"context"
+	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"time"
+
+	"github.com/siddhantk232/go-micro/handlers"
 )
 
 func main() {
+	l := log.New(os.Stdout, "products-api ", log.LstdFlags)
+	helloHandler := handlers.NewHello(l)
+	sm := http.NewServeMux()
 
-	http.HandleFunc("/", func(rw http.ResponseWriter, r *http.Request) {
-		data, error := ioutil.ReadAll(r.Body)
+	sm.Handle("/", helloHandler)
 
+	server := &http.Server{
+		Addr:         ":9090",
+		Handler:      sm,
+		IdleTimeout:  120 * time.Second,
+		ReadTimeout:  1 * time.Second,
+		WriteTimeout: 1 * time.Second,
+	}
+
+	go func() {
+		error := server.ListenAndServe()
 		if error != nil {
-			http.Error(rw, "Oops", http.StatusBadRequest)
-			return
+			l.Fatal(error)
 		}
+	}()
 
-		fmt.Fprintf(rw, "Hello %s", data)
-	})
+	sigChan := make(chan os.Signal)
+	signal.Notify(sigChan, os.Interrupt)
+	signal.Notify(sigChan, os.Kill)
 
-	http.ListenAndServe(":9090", nil)
+	sig := <-sigChan
+
+	l.Println("\nShutting down the server", sig)
+
+	tc, _ := context.WithTimeout(context.Background(), 30*time.Second)
+
+	server.Shutdown(tc)
+
 }
