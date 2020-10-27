@@ -8,18 +8,28 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/gorilla/mux"
+
 	"github.com/siddhantk232/go-micro/handlers"
 )
 
 func main() {
-	l := log.New(os.Stdout, "products-api ", log.LstdFlags)
+	l := log.New(os.Stdout, "[products-api] ", log.LstdFlags)
 	helloHandler := handlers.NewHello(l)
 	productsHandler := handlers.NewProducts(l)
 
-	sm := http.NewServeMux()
+	sm := mux.NewRouter()
+	getRouter := sm.Methods(http.MethodGet).Subrouter()
+	putRouter := sm.Methods(http.MethodPut).Subrouter()
+	postRouter := sm.Methods(http.MethodPost).Subrouter()
 
-	sm.Handle("/", helloHandler)
-	sm.Handle("/products", productsHandler)
+	putRouter.Use(productsHandler.ParseProductBody)
+	postRouter.Use(productsHandler.ParseProductBody)
+
+	getRouter.HandleFunc("/products", productsHandler.GetProducts)
+	postRouter.HandleFunc("/products", productsHandler.AddProduct)
+	putRouter.HandleFunc("/products/{id:[0-9]+}", productsHandler.UpdateProduct)
+	getRouter.HandleFunc("/", helloHandler.GetHello)
 
 	server := &http.Server{
 		Addr:         ":9090",
@@ -30,6 +40,7 @@ func main() {
 	}
 
 	go func() {
+		l.Println("Server started. Listening on port 9090")
 		error := server.ListenAndServe()
 		if error != nil {
 			l.Fatal(error)
