@@ -1,4 +1,4 @@
-module github.com/siddhantk232/go-micro
+module github.com/siddhantk232/products-api
 
 go 1.15
 
