@@ -57,6 +57,16 @@ func GetProducts() Products {
 	return ProductList
 }
 
+// GetProductByID return a product
+func GetProductByID(id int) (*Product, error) {
+	p, _, err := findProduct(id)
+	if id == -1 {
+		return nil, ErrorProductNotFound
+	}
+
+	return p, err
+}
+
 // AddProduct adds a product to the ProductList
 func AddProduct(p *Product) {
 	p.ID = getNextID()

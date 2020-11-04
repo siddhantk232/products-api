@@ -8,15 +8,27 @@ import (
 	"os/signal"
 	"time"
 
+	"google.golang.org/grpc"
+
 	"github.com/gorilla/mux"
 
+	"github.com/siddhantk232/currency/protos/currency"
 	"github.com/siddhantk232/go-micro/handlers"
 )
 
 func main() {
 	l := log.New(os.Stdout, "[products-api] ", log.LstdFlags)
-	helloHandler := handlers.NewHello(l)
-	productsHandler := handlers.NewProducts(l)
+
+	currencyConnection, err := grpc.Dial("localhost:9092", grpc.WithInsecure())
+	defer currencyConnection.Close()
+
+	if err != nil {
+		l.Println("error connecing to currency service", err)
+	}
+
+	cc := currency.NewCurrencyClient(currencyConnection)
+
+	productsHandler := handlers.NewProducts(l, cc)
 
 	sm := mux.NewRouter()
 	getRouter := sm.Methods(http.MethodGet).Subrouter()
@@ -27,9 +39,9 @@ func main() {
 	postRouter.Use(productsHandler.ParseProductBody)
 
 	getRouter.HandleFunc("/products", productsHandler.GetProducts)
+	getRouter.HandleFunc("/products/{id:[0-9]+}", productsHandler.GetProduct)
 	postRouter.HandleFunc("/products", productsHandler.AddProduct)
 	putRouter.HandleFunc("/products/{id:[0-9]+}", productsHandler.UpdateProduct)
-	getRouter.HandleFunc("/", helloHandler.GetHello)
 
 	server := &http.Server{
 		Addr:         ":9090",
@@ -47,6 +59,7 @@ func main() {
 		}
 	}()
 
+	tc, cancelFunc := context.WithTimeout(context.Background(), 30*time.Second)
 	sigChan := make(chan os.Signal)
 	signal.Notify(sigChan, os.Interrupt)
 	signal.Notify(sigChan, os.Kill)
@@ -54,9 +67,6 @@ func main() {
 	sig := <-sigChan
 
 	l.Println("\nShutting down the server", sig)
-
-	tc, _ := context.WithTimeout(context.Background(), 30*time.Second)
-
 	server.Shutdown(tc)
-
+	cancelFunc()
 }

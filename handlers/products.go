@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
+	"github.com/siddhantk232/currency/protos/currency"
 	"github.com/siddhantk232/go-micro/data"
 )
 
@@ -17,11 +18,12 @@ type ProductKey struct{}
 // Products handler
 type Products struct {
 	log *log.Logger
+	cc  currency.CurrencyClient
 }
 
 // NewProducts create a new products handler
-func NewProducts(log *log.Logger) *Products {
-	return &Products{log}
+func NewProducts(log *log.Logger, cc currency.CurrencyClient) *Products {
+	return &Products{log, cc}
 }
 
 // GetProducts GET all the products
@@ -32,6 +34,28 @@ func (p *Products) GetProducts(rw http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(rw, "parse error", http.StatusInternalServerError)
 	}
+}
+
+// GetProduct use this to get a single product
+func (p *Products) GetProduct(rw http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+
+	if err != nil {
+		http.Error(rw, "invalid id, must be number.", http.StatusBadRequest)
+	}
+
+	product, err := data.GetProductByID(id)
+
+	if err != nil {
+		http.Error(rw, fmt.Sprintf("can't get product %s", err), http.StatusBadRequest)
+	}
+
+	err = data.ToJSON(product, rw)
+
+	if err != nil {
+		http.Error(rw, fmt.Sprintf("can't get product %s", err), http.StatusBadRequest)
+	}
+
 }
 
 // AddProduct POST a product
