@@ -9,6 +9,6 @@
 
 ### TODO:
 
-- [] DELETE /products/2
-- [] add DB (postgresql)
-- [] use [currency](https://github.com/siddhantk232/currency) service (create that first!)
+- [ ] DELETE /products/2
+- [ ] add DB (postgresql)
+- [ ] use [currency](https://github.com/siddhantk232/currency) service (create that first!)
