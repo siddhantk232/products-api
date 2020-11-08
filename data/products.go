@@ -1,13 +1,16 @@
 package data
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"regexp"
 	"time"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/siddhantk232/currency/protos/currency"
 )
 
 // Product struct
@@ -15,11 +18,17 @@ type Product struct {
 	ID          int     `json:"id"`
 	Name        string  `json:"name" validate:"required"`
 	Description string  `json:"description"`
-	Price       float32 `json:"price" validate:"gt=0"`
+	Price       float64 `json:"price" validate:"gt=0"`
 	SKU         string  `json:"sku" validate:"required,sku"`
 	CreatedOn   string  `json:"-"`
 	UpdatedOn   string  `json:"-"`
 	DeletedOn   string  `json:"-"`
+}
+
+// ProductsDB basic product interaction
+type ProductsDB struct {
+	log log.Logger
+	cc  currency.CurrencyClient
 }
 
 // FromJSON decodes json
@@ -53,34 +62,73 @@ func (p *Products) ToJSON(w io.Writer) error {
 }
 
 // GetProducts returns product list
-func GetProducts() Products {
-	return ProductList
+func (p *ProductsDB) GetProducts(destCurrency string) (Products, error) {
+
+	if destCurrency == "" {
+		return ProductList, nil
+	}
+
+	rate, err := p.getRate(destCurrency)
+
+	if err != nil {
+		p.log.Println("Error getting exchange rate", err)
+		return nil, err
+	}
+
+	products := Products{}
+
+	for _, product := range ProductList {
+		np := *product
+		np.Price = np.Price * rate
+
+		products = append(products, &np)
+	}
+
+	return products, nil
+
 }
 
 // GetProductByID return a product
-func GetProductByID(id int) (*Product, error) {
-	p, _, err := findProduct(id)
+func (p *ProductsDB) GetProductByID(id int, destCurrency string) (*Product, error) {
+	product, _, err := findProduct(id)
+
 	if id == -1 {
 		return nil, ErrorProductNotFound
 	}
 
-	return p, err
+	if destCurrency == "" {
+		return product, err
+
+	}
+
+	rate, err := p.getRate(destCurrency)
+
+	if err != nil {
+		p.log.Println("Error getting exchange rate", err)
+		return nil, err
+	}
+
+	np := *product
+
+	np.Price = np.Price * rate
+
+	return &np, nil
 }
 
 // AddProduct adds a product to the ProductList
-func AddProduct(p *Product) {
-	p.ID = getNextID()
-	ProductList = append(ProductList, p)
+func (p *ProductsDB) AddProduct(product *Product) {
+	product.ID = getNextID()
+	ProductList = append(ProductList, product)
 }
 
 // UpdateProduct updates the product in the ProductList
-func UpdateProduct(id int, p *Product) error {
+func (p *ProductsDB) UpdateProduct(id int, product *Product) error {
 	prod, pos, err := findProduct(id)
 	if err != nil {
 		return err
 	}
-	p.ID = prod.ID
-	ProductList[pos] = p
+	product.ID = prod.ID
+	ProductList[pos] = product
 	return nil
 }
 
@@ -99,6 +147,16 @@ func findProduct(id int) (*Product, int, error) {
 
 func getNextID() int {
 	return ProductList[len(ProductList)-1].ID + 1
+}
+
+func (p *ProductsDB) getRate(destCurrency string) (float64, error) {
+	rr := &currency.RateRequest{
+		Base:        currency.Currencies(currency.Currencies_value["EUR"]),
+		Destination: currency.Currencies(currency.Currencies_value[destCurrency]),
+	}
+
+	resp, err := p.cc.GetRate(context.Background(), rr)
+	return resp.Rate, err
 }
 
 // ProductList static list
