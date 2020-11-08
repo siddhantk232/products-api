@@ -13,7 +13,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/siddhantk232/currency/protos/currency"
-	"github.com/siddhantk232/go-micro/handlers"
+	"github.com/siddhantk232/products-api/handlers"
 )
 
 func main() {
@@ -40,7 +40,9 @@ func main() {
 
 	getRouter.HandleFunc("/products", productsHandler.GetProducts)
 	getRouter.HandleFunc("/products/{id:[0-9]+}", productsHandler.GetProduct)
+
 	postRouter.HandleFunc("/products", productsHandler.AddProduct)
+
 	putRouter.HandleFunc("/products/{id:[0-9]+}", productsHandler.UpdateProduct)
 
 	server := &http.Server{
