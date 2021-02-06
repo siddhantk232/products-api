@@ -1,10 +1,10 @@
 package setup
 
 import (
-	"fmt"
-	"net/http"
+	"log"
 
 	"github.com/gorilla/mux"
+	"github.com/siddhantk232/products-api/products"
 )
 
 // /     GET    - get all products.
@@ -14,34 +14,17 @@ import (
 // /{id} DELETE - delete a product.
 
 // SetupRoutes register for products-api
-func SetupRoutes(sm *mux.Router) {
-	sm.HandleFunc("/", func(rw http.ResponseWriter, r *http.Request) {
+func SetupRoutes(sm *mux.Router, l *log.Logger) {
 
-		fmt.Fprintln(rw, "GET products")
+	productsHandler := products.NewProductsHandler(l)
 
-	}).Methods("GET")
+	sm.HandleFunc("/", productsHandler.ListProducts).Methods("GET")
 
-	sm.HandleFunc("/{id:[0-9]+}", func(rw http.ResponseWriter, r *http.Request) {
+	sm.HandleFunc("/{id:[0-9]+}", productsHandler.ListProduct).Methods("GET")
 
-		fmt.Fprintln(rw, "GET one product")
+	sm.HandleFunc("/", productsHandler.CreateProduct).Methods("POST")
 
-	}).Methods("GET")
+	sm.HandleFunc("/{id:[0-9]+}", productsHandler.UpdateProduct).Methods("UPDATE")
 
-	sm.HandleFunc("/", func(rw http.ResponseWriter, r *http.Request) {
-
-		fmt.Fprintln(rw, "create product")
-
-	}).Methods("POST")
-
-	sm.HandleFunc("/{id:[0-9]+}", func(rw http.ResponseWriter, r *http.Request) {
-
-		fmt.Fprintln(rw, "UPDATE product")
-
-	}).Methods("UPDATE")
-
-	sm.HandleFunc("/{id:[0-9]+}", func(rw http.ResponseWriter, r *http.Request) {
-
-		fmt.Fprintln(rw, "DELETE product")
-
-	}).Methods("DELETE")
+	sm.HandleFunc("/{id:[0-9]+}", productsHandler.DeleteProduct).Methods("DELETE")
 }

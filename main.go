@@ -17,7 +17,7 @@ func main() {
 
 	sm := mux.NewRouter()
 
-	setup.SetupRoutes(sm)
+	setup.SetupRoutes(sm, logger)
 
 	server := http.Server{
 		Addr:    ":9090",
